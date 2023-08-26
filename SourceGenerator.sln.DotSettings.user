@@ -1,0 +1,15 @@
+﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=befaa68a_002Dee3c_002D470a_002Db188_002Dd33016cc593a/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="HelloWorldGeneratorUnitTests" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;Or&gt;&#xD;
+    &lt;TestAncestor&gt;&#xD;
+      &lt;TestId&gt;MSTest::E4107DE4-3D31-465D-B5F7-4E41F6C87DF6::net6.0::CustomGenerator.UnitTests.HelloWorldGeneratorUnitTests&lt;/TestId&gt;&#xD;
+      &lt;TestId&gt;xUnit::2D4EABA8-D3EF-4B3B-8CB7-085077A73022::net6.0::CustomGenerator.UnitTests.CommandGeneratorUnitTests&lt;/TestId&gt;&#xD;
+    &lt;/TestAncestor&gt;&#xD;
+    &lt;ProjectFile&gt;E4107DE4-3D31-465D-B5F7-4E41F6C87DF6/f:CommandGeneratorUnitTests.cs&lt;/ProjectFile&gt;&#xD;
+  &lt;/Or&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:Boolean x:Key="/Default/ResxEditorPersonal/CheckedGroups/=HotChocolate_002ETypes_002EAnalyzers_002FProperties_002FSourceGenResources/@EntryIndexedValue">True</s:Boolean>
+	
+	<s:Boolean x:Key="/Default/ResxEditorPersonal/Initialized/@EntryValue">True</s:Boolean>
+	
+	</wpf:ResourceDictionary>
