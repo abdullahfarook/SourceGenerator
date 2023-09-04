@@ -32,6 +32,45 @@ public class DataLoaderGenerator : ISyntaxGenerator
             category: "DataLoader",
             DiagnosticSeverity.Error,
             isEnabledByDefault: true);
+    private static readonly DiagnosticDescriptor _invalidNumberOfParameters =
+        new(
+            id: "HC0010",
+            title: "Invalid number of parameters.",
+            messageFormat:
+            Service_InvalidNumberOfParameters,
+            category: "Service",
+            DiagnosticSeverity.Error, 
+            isEnabledByDefault: true);
+          
+    private static readonly DiagnosticDescriptor _invalidRequestType =
+        new(
+            id: "AB0011",
+            title: "First argument must be MediatR.IRequest type.", 
+            messageFormat:
+            Service_InvalidRequestType, 
+            category: "Service",
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+    
+    private static readonly DiagnosticDescriptor _invalidCancellationTokenPlacement =
+        new(
+            id: "AB0012",
+            title: "Last parameter must be a CancellationToken.",
+            messageFormat:
+            Service_InvalidCancellationTokenPlacement,
+            category: "Service",
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor _invalidReturnType =
+        new(
+            id: "AB0013",
+            title: "Return type must be Task.",
+            messageFormat:
+            Service_InvalidReturnType,
+            category: "Service",
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
 
     public void Initialize(IncrementalGeneratorPostInitializationContext context) { }
 
@@ -61,11 +100,11 @@ public class DataLoaderGenerator : ISyntaxGenerator
                 continue;
             }
 
-            if (dataLoader.MethodSymbol.Parameters.Length == 0)
+            if (dataLoader.MethodSymbol.Parameters.Length < 2)
             {
                 context.ReportDiagnostic(
                     Diagnostic.Create(
-                        _keyParameterMissing,
+                        _invalidNumberOfParameters,
                         Location.Create(
                             dataLoader.MethodSyntax.SyntaxTree,
                             dataLoader.MethodSyntax.ParameterList.Span)));
@@ -74,7 +113,7 @@ public class DataLoaderGenerator : ISyntaxGenerator
 
             if (dataLoader.MethodSymbol.DeclaredAccessibility is not Accessibility.Public
                 and not Accessibility.Internal and not Accessibility.ProtectedAndInternal)
-            {
+            {  
                 context.ReportDiagnostic(
                     Diagnostic.Create(
                         _methodAccessModifierInvalid,
@@ -83,8 +122,44 @@ public class DataLoaderGenerator : ISyntaxGenerator
                             dataLoader.MethodSyntax.Modifiers.Span)));
                 continue;
             }
-            var parameters = dataLoader.MethodSymbol.Parameters;
-            var returnSymbol = dataLoader.MethodSymbol.ReturnType;
+            var first = dataLoader.MethodSymbol.Parameters.FirstOrDefault()?.Type.Interfaces.FirstOrDefault();
+            if(first is null || first.Name != "IRequest" || first.ContainingNamespace.Name != "MediatR")
+            {
+                // report
+                context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        _invalidRequestType,
+                        Location.Create(
+                            dataLoader.MethodSyntax.SyntaxTree,
+                            dataLoader.MethodSyntax.Modifiers.Span)));
+                continue;
+            }
+            if (dataLoader.MethodSymbol.Parameters.LastOrDefault()?.Type.ToString() is not WellKnownTypes
+                    .CancellationToken)
+            {
+                // report
+                context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        _invalidCancellationTokenPlacement,
+                        Location.Create(
+                            dataLoader.MethodSyntax.SyntaxTree,
+                            dataLoader.MethodSyntax.Modifiers.Span)));
+                continue;
+            }
+            if (dataLoader.MethodSymbol.ReturnType.Name != "Task" && dataLoader.MethodSymbol.ReturnType.ContainingNamespace.Name != "System.Threading.Tasks")
+            {
+                // report
+                context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        _invalidReturnType,
+                        Location.Create(
+                            dataLoader.MethodSyntax.SyntaxTree,
+                            dataLoader.MethodSyntax.Modifiers.Span)));
+                continue;
+            }
+
+
+            var method = new Method(dataLoader);
             var keyArg = dataLoader.MethodSymbol.Parameters[0];
             var keyType = keyArg.Type;
             var cancellationTokenIndex = -1;
@@ -121,8 +196,7 @@ public class DataLoaderGenerator : ISyntaxGenerator
             dataLoaders.Add(dataLoader);
 
             GenerateDataLoader(
-                returnSymbol,
-                parameters,
+                method,
                 dataLoader,
                 defaults,
                 kind,
@@ -155,7 +229,7 @@ public class DataLoaderGenerator : ISyntaxGenerator
         StringBuilderPool.Return(sourceText);
     }
 
-    private static void GenerateDataLoader(ITypeSymbol returnSymbol, ImmutableArray<IParameterSymbol> parameterSymbols,
+    private static void GenerateDataLoader(Method method,
         DataLoaderInfo dataLoader,
         DataLoaderDefaultsInfo defaults,
         DataLoaderKind kind,
@@ -222,9 +296,13 @@ public class DataLoaderGenerator : ISyntaxGenerator
         sourceText.Append(dataLoader.Name);
 
         sourceText.Append(" : global::MediatR.IRequestHandler<");
-        sourceText.Append(valueType.ToFullyQualified());
-        // sourceText.Append(", ");
-        // sourceText.Append(keyType.ToFullyQualified());
+        sourceText.Append(method.Request.Type.ToFullyQualified());
+        if (method.Response is not null)
+        {
+            sourceText.Append(", ");
+            sourceText.Append(method.Response!.ToFullyQualified());
+        }
+        
         sourceText.Append(">");
         
         // if (kind is DataLoaderKind.Batch)
@@ -251,7 +329,7 @@ public class DataLoaderGenerator : ISyntaxGenerator
         // sourceText.Append(", ");
         // sourceText.AppendLine(interfaceName);
         sourceText.AppendLine("    {");
-        foreach (var parameter in parameterSymbols)
+        foreach (var parameter in method.Services)
         {
             sourceText.AppendLine(
                 $"        private readonly {parameter.Type.ToFullyQualified()} _{parameter.Name};");
@@ -263,71 +341,71 @@ public class DataLoaderGenerator : ISyntaxGenerator
             .Append("public ")
             .Append(dataLoader.Name)
             .AppendLine("(");
-        for (int i = 0; i < parameterSymbols.Length; i++)
+        for (int i = 0; i < method.Services.Length; i++)
         {      
             if (i > 0)
             {
                 sourceText.Append(",");
                 sourceText.AppendLine();
             }
-            var parameter = parameterSymbols[i];
+            var parameter = method.Services[i];
             sourceText
                 .Append(Indent)
                 .Append(Indent)
                 .Append(Indent)
                 .Append(
                     $"{parameter.Type.ToFullyQualified()} {parameter.Name}");
-        }
+        } 
 
         sourceText.AppendLine(")");
         sourceText.AppendLine("        {");
-        foreach (var parameter in parameterSymbols)
+        foreach (var parameter in method.Services)
         {
             sourceText.AppendLine($"            _{parameter.Name} = {parameter.Name} ??");
             sourceText.Append("                throw new global::")
                 .AppendLine($"System.ArgumentNullException(nameof({parameter.Name}));");
         }
 
-        var request = parameterSymbols.First();
+        var request = method.Request;
         sourceText.AppendLine("        }");
         sourceText.AppendLine();
         sourceText.Append($"        public ");
-        sourceText.Append($"{returnSymbol.ToFullyQualified()} ");
+        if (method.Response is not null)
+        {
+            sourceText.Append($"global::{WellKnownTypes.Task}<");
+            sourceText.Append(method.Response.ToFullyQualified());
+            sourceText.Append("> ");
+        }
+        else
+        { 
+            sourceText.Append($"global::{WellKnownTypes.Task} ");
+        }
         sourceText.AppendLine("Handle(");
         sourceText.AppendLine($"            {request.Type.ToFullyQualified()} {request.Name},");   
         sourceText.AppendLine($"            global::{WellKnownTypes.CancellationToken} cancellationToken)");
         sourceText.AppendLine("        {");
-
+  
         sourceText.Append("            return ");
         sourceText.Append(dataLoader.ContainingType);
         sourceText.Append(".");
         sourceText.Append(dataLoader.MethodName);
         sourceText.Append("(");
-
-        for (var i = 0; i < parameterSymbols.Length; i++)
+        sourceText.Append($"{method.Request.Name}, ");
+        for (var i = 0; i < method.Services.Length; i++)
         {
             if (i > 0)
             {
                 sourceText.Append(", ");
             }
-            if (i == cancelIndex)
-            {
-                sourceText.Append("cancellationToken");
-            }
-            else
-            {
-                sourceText.Append(parameterSymbols[i].Name);
-            }
-           
+            sourceText.Append($"_{method.Services[i].Name}");
         }
-        sourceText.AppendLine(");");
-
+        sourceText.Append(", cancellationToken);");
         sourceText.AppendLine("        }");
         sourceText.AppendLine("    }");
         sourceText.AppendLine("}");
     }
 
-    private static void GenerateDataLoaderRegistrations(
+    private static void GenerateDataLoaderRegistrations( 
         ModuleInfo module,
         List<DataLoaderInfo> dataLoaders,
         StringBuilder sourceText)

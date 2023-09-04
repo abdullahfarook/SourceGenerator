@@ -24,4 +24,16 @@
   <data name="DataLoader_InvalidAccessModifier" xml:space="preserve">
     <value>The DataLoader access modifier must be public or internal.</value>
   </data>
+  <data name="Service_InvalidCancellationTokenPlacement" xml:space="preserve">
+    <value>Last parameter must be a CancellationToken.</value>
+  </data>
+  <data name="Service_InvalidRequestType" xml:space="preserve">
+    <value>First argument must be MediatR.IRequest type.</value>
+  </data>
+  <data name="Service_InvalidNumberOfParameters" xml:space="preserve">
+    <value>Invalid number of parameters. First parameter must of type IRequest and Last parameter must be of type Cancellation Token</value>
+  </data>
+  <data name="Service_InvalidReturnType" xml:space="preserve">
+    <value>Invalid return type. Must be Task or Task&lt;T&gt;</value>
+  </data>
 </root>

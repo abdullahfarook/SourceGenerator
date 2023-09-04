@@ -22,7 +22,8 @@ public static class WellKnownTypes
     public const string ReadOnlyList = "System.Collections.Generic.IReadOnlyList";
     public const string ReadOnlyDictionary = "System.Collections.Generic.IReadOnlyDictionary";
     public const string Lookup = "System.Linq.ILookup";
-    public const string Task = "System.Threading.Tasks.Task";
+    public const string Request = "MediatR.IRequest";
+    public const string Task = "System.Threading.Tasks.Task"; 
 
     public static HashSet<string> TypeClass { get; } =
         new()
