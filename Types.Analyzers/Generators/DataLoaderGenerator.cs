@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text;
 using HotChocolate.Types.Analyzers.Helpers;
 using HotChocolate.Types.Analyzers.Inspectors;
@@ -82,7 +83,8 @@ public class DataLoaderGenerator : ISyntaxGenerator
                             dataLoader.MethodSyntax.Modifiers.Span)));
                 continue;
             }
-
+            var parameters = dataLoader.MethodSymbol.Parameters;
+            var returnSymbol = dataLoader.MethodSymbol.ReturnType;
             var keyArg = dataLoader.MethodSymbol.Parameters[0];
             var keyType = keyArg.Type;
             var cancellationTokenIndex = -1;
@@ -119,6 +121,8 @@ public class DataLoaderGenerator : ISyntaxGenerator
             dataLoaders.Add(dataLoader);
 
             GenerateDataLoader(
+                returnSymbol,
+                parameters,
                 dataLoader,
                 defaults,
                 kind,
@@ -151,7 +155,7 @@ public class DataLoaderGenerator : ISyntaxGenerator
         StringBuilderPool.Return(sourceText);
     }
 
-    private static void GenerateDataLoader(
+    private static void GenerateDataLoader(ITypeSymbol returnSymbol, ImmutableArray<IParameterSymbol> parameterSymbols,
         DataLoaderInfo dataLoader,
         DataLoaderDefaultsInfo defaults,
         DataLoaderKind kind,
@@ -172,38 +176,38 @@ public class DataLoaderGenerator : ISyntaxGenerator
         sourceText.AppendLine("{");
 
         // first we generate a DataLoader interface ...
-        var interfaceName = dataLoader.InterfaceName;
-
-        if (isInterfacePublic)
-        {
-            sourceText.Append("    public interface ");
-        }
-        else
-        {
-            sourceText.Append("    internal interface ");
-        }
-
-        sourceText.Append(interfaceName);
-
-        if (kind is DataLoaderKind.Batch or DataLoaderKind.Cache)
-        {
-            sourceText.Append(" : global::GreenDonut.IDataLoader<");
-            sourceText.Append(keyType.ToFullyQualified());
-            sourceText.Append(", ");
-            sourceText.Append(valueType.ToFullyQualified());
-            sourceText.Append(">");
-        }
-        else if (kind is DataLoaderKind.Group)
-        {
-            sourceText.Append(" : global::GreenDonut.IDataLoader<");
-            sourceText.Append(keyType.ToFullyQualified());
-            sourceText.Append(", ");
-            sourceText.Append(valueType.ToFullyQualified());
-            sourceText.Append("[]>");
-        }
-
-        sourceText.AppendLine(" { }");
-        sourceText.AppendLine();
+        // var interfaceName = dataLoader.InterfaceName;
+        //
+        // if (isInterfacePublic)
+        // {
+        //     sourceText.Append("    public interface ");
+        // }
+        // else
+        // {
+        //     sourceText.Append("    internal interface ");
+        // }
+        //
+        // sourceText.Append(interfaceName);
+        //
+        // if (kind is DataLoaderKind.Batch or DataLoaderKind.Cache)
+        // {
+        //     sourceText.Append(" : global::GreenDonut.IDataLoader<");
+        //     sourceText.Append(keyType.ToFullyQualified());
+        //     sourceText.Append(", ");
+        //     sourceText.Append(valueType.ToFullyQualified());
+        //     sourceText.Append(">");
+        // }
+        // else if (kind is DataLoaderKind.Group)
+        // {
+        //     sourceText.Append(" : global::GreenDonut.IDataLoader<");
+        //     sourceText.Append(keyType.ToFullyQualified());
+        //     sourceText.Append(", ");
+        //     sourceText.Append(valueType.ToFullyQualified());
+        //     sourceText.Append("[]>");
+        // }
+        //
+        // sourceText.AppendLine(" { }");
+        // sourceText.AppendLine();
 
         // ... then the actual DataLoader implementation.
         if (isPublic)
@@ -217,209 +221,106 @@ public class DataLoaderGenerator : ISyntaxGenerator
 
         sourceText.Append(dataLoader.Name);
 
-        if (kind is DataLoaderKind.Batch)
-        {
-            sourceText.Append(" : global::GreenDonut.BatchDataLoader<");
-            sourceText.Append(keyType.ToFullyQualified());
-            sourceText.Append(", ");
-            sourceText.Append(valueType.ToFullyQualified());
-            sourceText.Append(">");
-        }
-        else if (kind is DataLoaderKind.Group)
-        {
-            sourceText.Append(" : global::GreenDonut.GroupedDataLoader<");
-            sourceText.Append(keyType.ToFullyQualified());
-            sourceText.Append(", ");
-            sourceText.Append(valueType.ToFullyQualified());
-            sourceText.Append(">");
-        }
-        else if (kind is DataLoaderKind.Cache)
-        {
-            sourceText.Append(" : global::GreenDonut.CacheDataLoader<");
-            sourceText.Append(keyType.ToFullyQualified());
-            sourceText.Append(", ");
-            sourceText.Append(valueType.ToFullyQualified());
-            sourceText.Append(">");
-        }
+        sourceText.Append(" : global::MediatR.IRequestHandler<");
+        sourceText.Append(valueType.ToFullyQualified());
+        // sourceText.Append(", ");
+        // sourceText.Append(keyType.ToFullyQualified());
+        sourceText.Append(">");
+        
+        // if (kind is DataLoaderKind.Batch)
+        // {
+        //     
+        // }
+        // else if (kind is DataLoaderKind.Group)
+        // {
+        //     sourceText.Append(" : global::GreenDonut.GroupedDataLoader<");
+        //     sourceText.Append(keyType.ToFullyQualified());
+        //     sourceText.Append(", ");
+        //     sourceText.Append(valueType.ToFullyQualified());
+        //     sourceText.Append(">");
+        // }
+        // else if (kind is DataLoaderKind.Cache)
+        // {
+        //     sourceText.Append(" : global::GreenDonut.CacheDataLoader<");
+        //     sourceText.Append(keyType.ToFullyQualified());
+        //     sourceText.Append(", ");
+        //     sourceText.Append(valueType.ToFullyQualified());
+        //     sourceText.Append(">");
+        // }
 
-        sourceText.Append(", ");
-        sourceText.AppendLine(interfaceName);
+        // sourceText.Append(", ");
+        // sourceText.AppendLine(interfaceName);
         sourceText.AppendLine("    {");
-
-        sourceText.AppendLine(
-            "        private readonly global::System.IServiceProvider _services;");
+        foreach (var parameter in parameterSymbols)
+        {
+            sourceText.AppendLine(
+                $"        private readonly {parameter.Type.ToFullyQualified()} _{parameter.Name};");
+        }
         sourceText.AppendLine();
-
-        if (kind is DataLoaderKind.Batch or DataLoaderKind.Group)
-        {
-            sourceText
-                .Append(Indent)
-                .Append(Indent)
-                .Append("public ")
-                .Append(dataLoader.Name)
-                .AppendLine("(");
-            sourceText
-                .Append(Indent)
-                .Append(Indent)
-                .Append(Indent)
-                .AppendLine("global::System.IServiceProvider services,");
-            sourceText
-                .Append(Indent)
-                .Append(Indent)
-                .Append(Indent)
-                .AppendLine("global::GreenDonut.IBatchScheduler batchScheduler,");
+        sourceText
+            .Append(Indent)
+            .Append(Indent)
+            .Append("public ")
+            .Append(dataLoader.Name)
+            .AppendLine("(");
+        for (int i = 0; i < parameterSymbols.Length; i++)
+        {      
+            if (i > 0)
+            {
+                sourceText.Append(",");
+                sourceText.AppendLine();
+            }
+            var parameter = parameterSymbols[i];
             sourceText
                 .Append(Indent)
                 .Append(Indent)
                 .Append(Indent)
-                .AppendLine("global::GreenDonut.DataLoaderOptions? options = null)");
-
-            sourceText
-                .Append(Indent)
-                .Append(Indent)
-                .Append(Indent)
-                .AppendLine(": base(batchScheduler, options)");
-        }
-        else
-        {
-            sourceText
-                .Append(Indent)
-                .Append(Indent)
-                .Append("public ")
-                .Append(dataLoader.Name)
-                .AppendLine("(");
-
-            sourceText
-                .Append(Indent)
-                .Append(Indent)
-                .Append(Indent)
-                .AppendLine("global::System.IServiceProvider services,");
-
-            sourceText
-                .Append(Indent)
-                .Append(Indent)
-                .Append(Indent)
-                .AppendLine("global::GreenDonut.DataLoaderOptions? options = null)");
-
-            sourceText
-                .Append(Indent)
-                .Append(Indent)
-                .Append(Indent)
-                .AppendLine(": base(options)");
+                .Append(
+                    $"{parameter.Type.ToFullyQualified()} {parameter.Name}");
         }
 
+        sourceText.AppendLine(")");
         sourceText.AppendLine("        {");
-        sourceText.AppendLine("            _services = services ??");
-        sourceText.Append("                throw new global::")
-            .AppendLine("System.ArgumentNullException(nameof(services));");
+        foreach (var parameter in parameterSymbols)
+        {
+            sourceText.AppendLine($"            _{parameter.Name} = {parameter.Name} ??");
+            sourceText.Append("                throw new global::")
+                .AppendLine($"System.ArgumentNullException(nameof({parameter.Name}));");
+        }
+
+        var request = parameterSymbols.First();
         sourceText.AppendLine("        }");
         sourceText.AppendLine();
-
-        if (kind is DataLoaderKind.Batch)
-        {
-            sourceText.Append($"        protected override async global::{WellKnownTypes.Task}<");
-            sourceText.Append($"{ReadOnlyDictionary}<");
-            sourceText.Append(keyType.ToFullyQualified());
-            sourceText.Append(", ");
-            sourceText.Append(valueType.ToFullyQualified());
-            sourceText.Append(">> ");
-            sourceText.AppendLine("LoadBatchAsync(");
-            sourceText.Append($"            {ReadOnlyList}<");
-            sourceText.Append(keyType.ToFullyQualified()).AppendLine("> keys,");
-            sourceText.AppendLine($"            global::{WellKnownTypes.CancellationToken} ct)");
-        }
-        else if (kind is DataLoaderKind.Group)
-        {
-            sourceText.Append($"        protected override async global::{WellKnownTypes.Task}<");
-            sourceText.Append($"{Lookup}<");
-            sourceText.Append(keyType.ToFullyQualified());
-            sourceText.Append(", ");
-            sourceText.Append(valueType.ToFullyQualified());
-            sourceText.Append(">> ");
-            sourceText.AppendLine("LoadGroupedBatchAsync(");
-            sourceText.Append($"            {ReadOnlyList}<");
-            sourceText.Append(keyType.ToFullyQualified()).AppendLine("> keys,");
-            sourceText.AppendLine($"            global::{WellKnownTypes.CancellationToken} ct)");
-        }
-        else if (kind is DataLoaderKind.Cache)
-        {
-            sourceText.Append($"        protected override async global::{WellKnownTypes.Task}<");
-            sourceText.Append(valueType.ToFullyQualified());
-            sourceText.Append("> ");
-            sourceText.AppendLine("LoadSingleAsync(");
-            sourceText
-                .Append("            ")
-                .Append(keyType.ToFullyQualified())
-                .AppendLine(" key,");
-            sourceText.AppendLine($"            {WellKnownTypes.CancellationToken} ct)");
-        }
-
+        sourceText.Append($"        public ");
+        sourceText.Append($"{returnSymbol.ToFullyQualified()} ");
+        sourceText.AppendLine("Handle(");
+        sourceText.AppendLine($"            {request.Type.ToFullyQualified()} {request.Name},");   
+        sourceText.AppendLine($"            global::{WellKnownTypes.CancellationToken} cancellationToken)");
         sourceText.AppendLine("        {");
 
-        if (isScoped)
-        {
-            sourceText
-                .Append(Indent)
-                .Append(Indent)
-                .Append(Indent)
-                .AppendLine("await using var scope = _services.CreateAsyncScope();");
-
-            foreach (var item in services.OrderBy(t => t.Key))
-            {
-                sourceText.Append("            var p").Append(item.Key).Append(" = ");
-                sourceText.Append("scope.ServiceProvider.GetRequiredService<");
-                sourceText.Append(item.Value);
-                sourceText.AppendLine(">();");
-            }
-        }
-        else
-        {
-            foreach (var item in services.OrderBy(t => t.Key))
-            {
-                sourceText
-                    .Append("            var p")
-                    .Append(item.Key)
-                    .Append(" = _services.GetRequiredService<");
-                sourceText.Append(item.Value);
-                sourceText.AppendLine(">();");
-            }
-        }
-
-        sourceText.Append("            return await ");
+        sourceText.Append("            return ");
         sourceText.Append(dataLoader.ContainingType);
         sourceText.Append(".");
         sourceText.Append(dataLoader.MethodName);
         sourceText.Append("(");
 
-        for (var i = 0; i < parameterCount; i++)
+        for (var i = 0; i < parameterSymbols.Length; i++)
         {
             if (i > 0)
             {
                 sourceText.Append(", ");
             }
-
-            if (i == 0)
+            if (i == cancelIndex)
             {
-                if (kind is DataLoaderKind.Batch or DataLoaderKind.Group)
-                {
-                    sourceText.Append("keys");
-                }
-                else
-                {
-                    sourceText.Append("key");
-                }
-            }
-            else if (i == cancelIndex)
-            {
-                sourceText.Append("ct");
+                sourceText.Append("cancellationToken");
             }
             else
             {
-                sourceText.Append("p");
-                sourceText.Append(i);
+                sourceText.Append(parameterSymbols[i].Name);
             }
+           
         }
-        sourceText.AppendLine(").ConfigureAwait(false);");
+        sourceText.AppendLine(");");
 
         sourceText.AppendLine("        }");
         sourceText.AppendLine("    }");

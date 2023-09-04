@@ -1,14 +1,17 @@
+using MediatR;
+
 namespace GraphGenerator.Types;
 
-public record Author(string Name);
+public record Author(string Name) : IRequest, IRequest<Guid>;
 [QueryType]
 public class HelloWorld3
 {
     public string World { get; set; } = "Hello World";
     // data loader Author
-    [DataLoader] 
+    // [DataLoader]
     public static async Task<IReadOnlyDictionary<string,Author>> GetAuthorsByNameAsync(
         IReadOnlyList<string> names,
+        Book book,
         CancellationToken cancellationToken)
     {
         // dummy authors
@@ -18,6 +21,15 @@ public class HelloWorld3
     }
     
 }
+
+public class Hello : IRequestHandler<Author>
+{
+    public Task Handle(Author request, CancellationToken cancellationToken)
+    {
+        throw new NotImplementedException();
+    }
+}
+
 [QueryType]
 public class HelloWorld5
 {
@@ -26,6 +38,7 @@ public class HelloWorld5
     [DataLoader] 
     public static async Task<IReadOnlyDictionary<string,Author>> GetAuthorsByIdAsync(
         IReadOnlyList<string> names,
+        Book book,
         CancellationToken cancellationToken)
     {
         // dummy authors

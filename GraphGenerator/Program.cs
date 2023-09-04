@@ -4,7 +4,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
     .AddGraphQLServer()
-    .AddTypes();
+    .AddTypes()
+    ;
 
 var app = builder.Build();
 
@@ -28,6 +29,7 @@ public class HelloWorld2
     public HelloWorld2(string name)
     {
         Name = name;
+        // MediatR.IRequestHandler<>
     }
 
     public string Name { get; set; }
