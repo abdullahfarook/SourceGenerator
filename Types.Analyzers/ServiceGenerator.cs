@@ -37,7 +37,10 @@ public class ServiceGenerator:IIncrementalGenerator
                     transform: TryGetModuleOrType)
                 .Where(static t => t is not null)!
                 .WithComparer(SyntaxInfoComparer.Default);
-
+        if (!Debugger.IsAttached)
+        {
+            Debugger.Launch(); 
+        }
         var valueProvider = context.CompilationProvider.Combine(modulesAndTypes.Collect());
         context.RegisterSourceOutput(
             valueProvider,
